@@ -70,13 +70,8 @@ vwait done
 
 Building
 ----
-This could use git submodules but that is not working completely for me.
+Libancillary is embedded in the source with includes. That's not a requirement. It was easy.
 
-```
-cd libancillary
-git clone https://github.com/mhaberler/libancillary
-# Do not make, we include the source
-```
 To build do a standard Tcl extension build.
 ```
 autoreconf
