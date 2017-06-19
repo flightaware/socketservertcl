@@ -16,6 +16,15 @@
 static void socketserver_CmdDeleteProc(ClientData clientData)
 {
 	if (clientData != NULL) {
+		socketserver_objectClientData *cdPtr = (socketserver_objectClientData *)clientData;
+		if (cdPtr->ports != NULL) {
+			socketserver_port *p = cdPtr->ports;
+			while (p != NULL) {
+				socketserver_port *prev = p;
+				p = p->nextPtr;
+				ckfree(prev);
+			}
+		}
 		ckfree(clientData);
 	}
 }
@@ -66,11 +75,8 @@ Socketserver_Init(Tcl_Interp *interp)
 		return TCL_ERROR;
 	}
 
-	data->threadArgs.in = -1;
-	data->threadArgs.port = -1;
-	data->out = -1;
 	data->object_magic = SOCKETSERVER_OBJECT_MAGIC;
-	data->need_channel = 1;
+	data->ports = NULL;
 
 	/* Create the create command  */
 	Tcl_CreateObjCommand(interp, "::socketserver::socket", (Tcl_ObjCmdProc *) socketserverObjCmd, 
@@ -95,7 +101,7 @@ Socketserver_Init(Tcl_Interp *interp)
  *----------------------------------------------------------------------
  */
 
-	EXTERN int
+EXTERN int
 Socketserver_SafeInit(Tcl_Interp *interp)
 {
 	/*
