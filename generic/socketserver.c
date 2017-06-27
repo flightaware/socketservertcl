@@ -6,6 +6,8 @@
  * Copyright (C) 2017 FlightAware LLC
  *
  * freely redistributable under the Berkeley license
+ * educated by code snippets from flingfd under Apache V2.0 license.
+ *
  */
 
 #include <assert.h>
@@ -25,16 +27,74 @@
 #include <netinet/in.h>
 #endif
 
-#define SPARE_SEND_FDS 1
-#define SPARE_RECV_FDS 1
-
-#include "../libancillary/ancillary.h"
-#include "../libancillary/fd_recv.c"
-#include "../libancillary/fd_send.c"
-
 #include "socketserver.h"
 
 TCL_DECLARE_MUTEX(threadMutex);
+
+/*
+ * Send and fd over sock with SCM_RIGHTS.
+ *
+ * Returns: 0 for success and 1 for error.
+ */
+static int send_fd(int sock, int fd) {
+	struct msghdr msg;
+	struct iovec iov;
+	char buf[CMSG_SPACE(sizeof(int))];
+
+	iov.iov_base = buf;
+	iov.iov_len = 1;
+
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = buf;
+	msg.msg_controllen = sizeof(buf);
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+
+	struct cmsghdr *header = CMSG_FIRSTHDR(&msg);
+	header->cmsg_level = SOL_SOCKET;
+	header->cmsg_type = SCM_RIGHTS;
+	header->cmsg_len = CMSG_LEN(sizeof(int));
+	*(int *)CMSG_DATA(header) = fd;
+
+	return sendmsg(sock, &msg, 0) > 0 ? 0 : 1;
+}
+
+/*
+ * Receive a fd from socket.
+ *
+ * Returns: -1 for error or the fd one success.
+ */
+static int recv_fd(int sock) {
+	struct msghdr msg;
+	struct iovec iov;
+	char buf[CMSG_SPACE(sizeof(int))];
+
+	iov.iov_base = buf;
+	iov.iov_len = 1;
+	msg.msg_iov = &iov;
+	msg.msg_iovlen = 1;
+	msg.msg_control = buf;
+	msg.msg_controllen = sizeof(buf);
+	msg.msg_name = NULL;
+	msg.msg_namelen = 0;
+
+	if (recvmsg(sock, &msg, 0) == -1)
+		return -1;
+
+	struct cmsghdr *header;
+	for (header = CMSG_FIRSTHDR(&msg); header != NULL; header = CMSG_NXTHDR(&msg, header)) {
+		if (header->cmsg_level == SOL_SOCKET && header->cmsg_type == SCM_RIGHTS) {
+			int count = (header->cmsg_len - (CMSG_DATA(header) - (unsigned char *)header)) / sizeof(int);
+			if (count > 0) {
+				int fd = ((int *)CMSG_DATA(header))[i];
+				return fd;
+			}
+		}
+	}
+
+	return -1;
+}
 
 /*
  *----------------------------------------------------------------------
@@ -56,6 +116,7 @@ static char debug_msgbuf[512];
 static void debug(const char * msg) {
 #ifdef SOCKETSERVER_DEBUG
 	strcpy(debug_msgbuf, msg);
+	fprintf(stderr, "%s\n", msg);
 #endif
 }
 
@@ -107,12 +168,19 @@ static void * socketserver_thread(void *args)
 		else if (client_sock != -1)
 		{
 			debug("Connection accepted");
-			if (ancil_send_fd(sock, client_sock)) {
-				debug("ancil_send_fd failed");
+			fprintf(stderr, "sending fd=%d\n", client_sock);
+			if (send_fd(sock, client_sock)) {
+				debug("Send fd failed");
 			} else {
-				debug("Sent fd.\n");
+				debug("Sent fd.");
 			}
+#ifdef Linux
+			/* Linux appears to keep the passed socket open.
+			 * BSD will close the socket before it reaches the child process.
+			 * It is a documented race condition that needs to be addressed.
+			 */
 			close(client_sock);
+#endif
 		}
 	}
 	return (void *)0;
@@ -135,8 +203,8 @@ static int socketserver_EventProc(Tcl_Event *tcl_event, int flags)
 	}
 	data->active = 0;
 	/* attempt to read and FD from the socketpair. */
-	int fd = -1;
-	if (ancil_recv_fd(data->out, &fd) || fd == -1) {
+	int fd = recv_fd(data->out);
+	if (fd == -1) {
 		/* receive errors are ok. The socketpair is non-blocking and
 		 * interrupts can happen. */
 		data->active = 1;
@@ -248,7 +316,7 @@ int socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_
 
 	// argument must be one of the subOptions defined above
 	if (Tcl_GetIndexFromObj (interp, objv[1], options, "option",
-							 TCL_EXACT, &optIndex) != TCL_OK) {
+				TCL_EXACT, &optIndex) != TCL_OK) {
 		return TCL_ERROR;
 	}
 
