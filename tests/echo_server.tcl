@@ -3,7 +3,7 @@ package require socketserver
 
 # Creat the socket
 # Start listening and accepting connections in a background thread
-::socketserver::socket server 7701
+::socketserver::socket server 8888
 
 set done 0
 
@@ -20,7 +20,7 @@ proc handle_accept {fd} {
 	puts "client closing socket"
 	close $fd
 	# Now that we have closed, we are ready for another socket
-	::socketserver::socket client -port 7701 handle_accept
+	::socketserver::socket client -port 8888 handle_accept
 }
 
 proc do_client {} {
