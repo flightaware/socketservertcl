@@ -77,5 +77,5 @@ make install
 ```
 
 Thanks to libancillary which made this code possible by clearly implementing file descriptor passing.
-Thanks fo flingfd which provided more cleanups how to call SCM_RIGHTS.
+Thanks fo flingfd which provided more cleanups on how to call SCM_RIGHTS.
 https://github.com/sharvil/flingfd
