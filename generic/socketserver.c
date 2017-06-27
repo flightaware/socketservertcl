@@ -168,7 +168,6 @@ static void * socketserver_thread(void *args)
 		else if (client_sock != -1)
 		{
 			debug("Connection accepted");
-			fprintf(stderr, "sending fd=%d\n", client_sock);
 			if (send_fd(sock, client_sock)) {
 				debug("Send fd failed");
 			} else {
