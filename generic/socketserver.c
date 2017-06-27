@@ -174,13 +174,7 @@ static void * socketserver_thread(void *args)
 			} else {
 				debug("Sent fd.");
 			}
-#ifdef __linux__
-			/* Linux appears to keep the passed socket open.
-			 * BSD will close the socket before it reaches the child process.
-			 * It is a documented race condition that needs to be addressed.
-			 */
 			close(client_sock);
-#endif
 		}
 	}
 	return (void *)0;
