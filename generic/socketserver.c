@@ -87,7 +87,7 @@ static int recv_fd(int sock) {
 		if (header->cmsg_level == SOL_SOCKET && header->cmsg_type == SCM_RIGHTS) {
 			int count = (header->cmsg_len - (CMSG_DATA(header) - (unsigned char *)header)) / sizeof(int);
 			if (count > 0) {
-				int fd = ((int *)CMSG_DATA(header))[i];
+				int fd = ((int *)CMSG_DATA(header))[0];
 				return fd;
 			}
 		}
