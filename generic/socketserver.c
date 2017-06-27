@@ -55,7 +55,7 @@ static int send_fd(int sock, int fd) {
 	header->cmsg_level = SOL_SOCKET;
 	header->cmsg_type = SCM_RIGHTS;
 	header->cmsg_len = CMSG_LEN(sizeof(int));
-	*(int *)CMSG_DATA(header) = fd;
+	memcpy(CMSG_DATA(header), &fd, sizeof(fd));
 
 	return sendmsg(sock, &msg, 0) > 0 ? 0 : 1;
 }
@@ -87,7 +87,8 @@ static int recv_fd(int sock) {
 		if (header->cmsg_level == SOL_SOCKET && header->cmsg_type == SCM_RIGHTS) {
 			int count = (header->cmsg_len - (CMSG_DATA(header) - (unsigned char *)header)) / sizeof(int);
 			if (count > 0) {
-				int fd = ((int *)CMSG_DATA(header))[0];
+				int fd = -1;
+				memcpy(&fd, CMSG_DATA(header), sizeof(fd));
 				return fd;
 			}
 		}
@@ -173,7 +174,7 @@ static void * socketserver_thread(void *args)
 			} else {
 				debug("Sent fd.");
 			}
-#ifdef Linux
+#ifdef __linux__
 			/* Linux appears to keep the passed socket open.
 			 * BSD will close the socket before it reaches the child process.
 			 * It is a documented race condition that needs to be addressed.
