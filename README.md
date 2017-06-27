@@ -23,11 +23,11 @@ file descriptor passing.
 
 ```
 
-A ::socketserver::socket server ?port? opens the listening and accepting TCP socket.  You will do this once before forking children.  The socket accept() call is performed in a background daemon thread. 
+A ::socketserver::socket server <port number> opens the listening and accepting TCP socket.  You will do this once before forking children.  The socket accept() call is performed in a background daemon thread. 
 Clients will be able to send data immediately on accept. Clients will not receive data until child processes
-call ::sockerserver::socket client ?handleProc?, Tcl dispatches the events and invokes the handlerProc and the handleProc reads the socket.
+call ::sockerserver::socket client ?-port <port number>? <handleProc>, Tcl dispatches the events and invokes the handlerProc and the handleProc reads the socket.
 
-A ::socketserver::socket client ?handlerProc? must be called to receive a connected TCP socket from the parent process.
+A ::socketserver::socket client <handlerProc> must be called to receive a connected TCP socket from the parent process.
 This allows the forked process to process single connects serially.
 All of the child processes share a single queue implemented as the socketpair() between the parent and child processes.
 Multiple forked processes can then handle many connections in "parallel" after they serially recvmsg() the file descriptor.
@@ -57,20 +57,16 @@ proc handle_socket {sock} {
     puts $sock $line
     close $sock
     # now we are ready to handle another
-    ::socketserver::socket client handle_socket
+    ::socketserver::socket client -port 8888 handle_socket
 }
 
 # ... fork child process
 if {[fork] == 0} {
-  ::socketserver::socket client handle_socket
+  ::socketserver::socket client -port 8888 handle_socket
 }
 
 vwait done
 ```
-
-Building
-----
-Libancillary is embedded in the source with includes. That's not a requirement. It was easy.
 
 To build do a standard Tcl extension build.
 ```
@@ -81,3 +77,5 @@ make install
 ```
 
 Thanks to libancillary which made this code possible by clearly implementing file descriptor passing.
+Thanks fo flingfd which provided more cleanups how to call SCM_RIGHTS.
+https://github.com/sharvil/flingfd
