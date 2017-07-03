@@ -79,7 +79,7 @@ static int recv_fd(int sock) {
 	msg.msg_name = NULL;
 	msg.msg_namelen = 0;
 
-	if (recvmsg(sock, &msg, 0) == -1)
+	if (recvmsg(sock, &msg, MSG_DONTWAIT) == -1)
 		return -1;
 
 	struct cmsghdr *header;
@@ -393,8 +393,6 @@ int socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_
 			data->callback = callback;
 			/* Bytes needed for callback script. Command plus sockXXXXXXXX */
 			data->scriptLen = strlen(data->callback) + 80;
-			/* make the socket non-blocking */
-			fcntl(data->out, F_SETFL, fcntl(data->out, F_GETFL, 0) | O_NONBLOCK);
 			/* When the client end of the socketpair is readable, then
 			 * create an event to consume the fd.
 			 */
