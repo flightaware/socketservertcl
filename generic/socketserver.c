@@ -193,7 +193,7 @@ static int socketserver_EventProc(Tcl_Event *tcl_event, int flags)
 	Tcl_MutexLock(&threadMutex);
 	if (!data->active) {
 		Tcl_MutexUnlock(&threadMutex);
-		return TCL_OK;
+		return 1;
 	}
 	data->active = 0;
 	/* attempt to read and FD from the socketpair. */
@@ -203,7 +203,7 @@ static int socketserver_EventProc(Tcl_Event *tcl_event, int flags)
 		 * interrupts can happen. */
 		data->active = 1;
 		Tcl_MutexUnlock(&threadMutex);
-		return TCL_OK;
+		return 1;
 	}
 	Tcl_MutexUnlock(&threadMutex);
 
@@ -216,16 +216,16 @@ static int socketserver_EventProc(Tcl_Event *tcl_event, int flags)
 	const char *channel_name = Tcl_GetChannelName(channel);
 	if (channel_name == NULL || *channel_name == 0) {
 		Tcl_AddErrorInfo(data->interp, "Failed to get channel name for ancil_recv_fd file descriptor.");
-		return TCL_ERROR;
+		return 1;
 	}
 	char * script = (char *)ckalloc(data->scriptLen);
 	strcpy(script, data->callback);
 	strcat(script, " ");
 	strcat(script, channel_name);
-	int rc = Tcl_Eval(data->interp, script);
+	Tcl_Eval(data->interp, script);
 	ckfree(script);
 
-	return rc;
+	return 1;
 }
 
 /*
