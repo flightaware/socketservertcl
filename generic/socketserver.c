@@ -136,6 +136,7 @@ static void * socketserver_thread(void *args)
 	int socket_desc , client_sock;
 	struct sockaddr_in server , client;
 	int c = sizeof(struct sockaddr_in);
+	int on = 1;
 
 	// create tcp socket
 	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
@@ -145,12 +146,18 @@ static void * socketserver_thread(void *args)
 	}
 	debug("Socket created");
 
+	if (setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) < 0) {
+		debug("SO_REUSEADDR failed");    
+	}
+
 	server.sin_family = AF_INET;
 	server.sin_addr.s_addr = INADDR_ANY;
 	server.sin_port = htons( targs->port );
 	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
 		debug("bind failed");
+		// Send a TERM signal to self, to exit the master process
+		kill(getpid(), 15);
 		return (void *)1;
 	}
 	debug("bind done");
