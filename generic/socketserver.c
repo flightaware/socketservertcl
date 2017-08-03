@@ -25,6 +25,7 @@
 #include <pthread.h>
 #ifdef __FreeBSD__
 #include <netinet/in.h>
+#include <signal.h>
 #endif
 
 #include "socketserver.h"
