@@ -1,4 +1,4 @@
-socketserver, a Tcl interface to libancillary for socket serving by socket passing and SCM_RIGHTS
+socketserver, a Tcl extension for socket serving by socket passing and SCM_RIGHTS
 ===
 
 Socketserver provides a Tcl command for creating a socketserver.  A socketserver is a process
