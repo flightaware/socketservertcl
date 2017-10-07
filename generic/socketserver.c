@@ -14,6 +14,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <stdio.h>
+#include <signal.h>
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <errno.h>
@@ -30,6 +31,8 @@
 
 #include "socketserver.h"
 
+#define HOST_AND_PORT_LEN (INET_ADDRSTRLEN + INET6_ADDRSTRLEN + 80)
+
 TCL_DECLARE_MUTEX(threadMutex);
 
 /*
@@ -37,14 +40,22 @@ TCL_DECLARE_MUTEX(threadMutex);
  *
  * Returns: 0 for success and 1 for error.
  */
-static int send_fd(int sock, int fd) {
+static int send_fd(int sock, int fd, const char *host_and_port) {
 	struct msghdr msg;
 	struct iovec iov;
 	char buf[CMSG_SPACE(sizeof(int))];
-
-	iov.iov_base = buf;
-	iov.iov_len = 1;
-
+    char null_byte = 0;
+    
+    if (host_and_port) {
+        // Send the host and port as the data in the message
+        iov.iov_base = (void *)host_and_port;
+        iov.iov_len = strlen(host_and_port) + 1;
+    } else {
+        // We have to send at least a byte
+        iov.iov_base = &null_byte;
+        iov.iov_len = 1;
+    }
+    
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 	msg.msg_control = buf;
@@ -66,13 +77,19 @@ static int send_fd(int sock, int fd) {
  *
  * Returns: -1 for error or the fd one success.
  */
-static int recv_fd(int sock) {
+static int recv_fd(int sock, char *host_and_port, int host_and_port_max) {
 	struct msghdr msg;
 	struct iovec iov;
-	char buf[CMSG_SPACE(sizeof(int))];
+    char buf[CMSG_SPACE(sizeof(int))];
+    char data[HOST_AND_PORT_LEN];
 
-	iov.iov_base = buf;
-	iov.iov_len = 1;
+    // Set address to null string
+    if (host_and_port) {
+        *host_and_port = 0;
+    }
+    
+	iov.iov_base = data;
+	iov.iov_len = sizeof(data);
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 	msg.msg_control = buf;
@@ -82,14 +99,15 @@ static int recv_fd(int sock) {
 
 	if (recvmsg(sock, &msg, MSG_DONTWAIT) == -1)
 		return -1;
-
+    
 	struct cmsghdr *header;
 	for (header = CMSG_FIRSTHDR(&msg); header != NULL; header = CMSG_NXTHDR(&msg, header)) {
 		if (header->cmsg_level == SOL_SOCKET && header->cmsg_type == SCM_RIGHTS) {
-			int count = (header->cmsg_len - (CMSG_DATA(header) - (unsigned char *)header)) / sizeof(int);
-			if (count > 0) {
+			int count = header->cmsg_len - (CMSG_DATA(header) - (unsigned char *)header);
+			if (count == sizeof(int)) {
 				int fd = -1;
-				memcpy(&fd, CMSG_DATA(header), sizeof(fd));
+				memcpy(&fd, CMSG_DATA(header), sizeof(int));
+                strncpy(host_and_port, data, host_and_port_max);
 				return fd;
 			}
 		}
@@ -135,9 +153,15 @@ static void * socketserver_thread(void *args)
 	socketserver_thread_args* targs = (socketserver_thread_args *)args;
 	int sock = targs->in;
 	int socket_desc , client_sock;
-	struct sockaddr_in server , client;
-	int c = sizeof(struct sockaddr_in);
+	struct sockaddr_in server, *sin;
+    struct sockaddr_in6 *sin6;
+    struct sockaddr client;
+	int client_max = sizeof(client);
 	int on = 1;
+    char clientaddr[INET_ADDRSTRLEN + INET6_ADDRSTRLEN];
+    int clientaddr_max = sizeof(clientaddr);
+    int client_port = -1;
+    char host_and_port[sizeof(clientaddr) + 80];
 
 	// create tcp socket
 	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
@@ -168,7 +192,7 @@ static void * socketserver_thread(void *args)
 	debug("Waiting for incoming connections...");
 
 	while (1) {
-		client_sock = accept(socket_desc, (struct sockaddr *)&client, (socklen_t*)&c);
+		client_sock = accept(socket_desc, &client, (socklen_t*)&client_max);
 		if (client_sock < 0 && errno != EINTR)
 		{
 			// EINTR are ok in accept calls, retry
@@ -177,7 +201,29 @@ static void * socketserver_thread(void *args)
 		else if (client_sock != -1)
 		{
 			debug("Connection accepted");
-			if (send_fd(sock, client_sock)) {
+            // Try to get the address as a string
+            switch(client.sa_family) {
+                case AF_INET:
+                    sin = (struct sockaddr_in *)&client;
+                    inet_ntop(AF_INET, &(sin->sin_addr),
+                              clientaddr, clientaddr_max);
+                    client_port = ntohs(sin->sin_port);
+                    break;
+                    
+                case AF_INET6:
+                    sin6 = (struct sockaddr_in6 *)&client;
+                    inet_ntop(AF_INET6, &(sin6->sin6_addr),
+                          clientaddr, clientaddr_max);
+                    client_port = ntohs(sin6->sin6_port);
+                    break;
+                    
+                default:
+                    strncpy(clientaddr, "\"Unknown AF\"", clientaddr_max);
+                    client_port = -1;
+                    return NULL;
+            }
+            snprintf(host_and_port, sizeof(host_and_port) - 1, "%s %d", clientaddr, client_port);
+			if (send_fd(sock, client_sock, host_and_port)) {
 				debug("Send fd failed");
 			} else {
 				debug("Sent fd.");
@@ -194,6 +240,7 @@ static void * socketserver_thread(void *args)
  */
 static int socketserver_EventProc(Tcl_Event *tcl_event, int flags)
 {
+    char host_and_port[HOST_AND_PORT_LEN];
 	socketserver_ThreadEvent *evPtr = (socketserver_ThreadEvent *)tcl_event;
 	socketserver_port * data = (socketserver_port *)evPtr->data;
 
@@ -205,7 +252,7 @@ static int socketserver_EventProc(Tcl_Event *tcl_event, int flags)
 	}
 	data->active = 0;
 	/* attempt to read and FD from the socketpair. */
-	int fd = recv_fd(data->out);
+	int fd = recv_fd(data->out, host_and_port, sizeof(host_and_port));
 	if (fd == -1) {
 		/* receive errors are ok. The socketpair is non-blocking and
 		 * interrupts can happen. */
@@ -230,6 +277,8 @@ static int socketserver_EventProc(Tcl_Event *tcl_event, int flags)
 	strcpy(script, data->callback);
 	strcat(script, " ");
 	strcat(script, channel_name);
+    strcat(script, " ");
+    strcat(script, host_and_port);
 	Tcl_Eval(data->interp, script);
 	ckfree(script);
 
@@ -400,7 +449,7 @@ int socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_
 			data->threadId = Tcl_GetCurrentThread();
 			data->callback = callback;
 			/* Bytes needed for callback script. Command plus sockXXXXXXXX */
-			data->scriptLen = strlen(data->callback) + 80;
+			data->scriptLen = strlen(data->callback) + HOST_AND_PORT_LEN * 2;
 			/* When the client end of the socketpair is readable, then
 			 * create an event to consume the fd.
 			 */
