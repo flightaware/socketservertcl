@@ -51,10 +51,15 @@ Outline of Tcl Code use
 
 # Fork some children, they will inherit the socketpair created in ::socketserver::socket
 # ... in the forked child
-proc handle_socket {sock} {
+proc handle_socket {sock ipaddr port} {
+    fileevent readable $sock [list handle_read $sock $ipaddr $port]
+}
+
+proc handle_read {sock ipaddr port} {
     # ... communicate over the socket
     set line [gets $sock]
     puts $sock $line
+    fileevent readable $sock {}
     close $sock
     # now we are ready to handle another
     ::socketserver::socket client -port 8888 handle_socket
