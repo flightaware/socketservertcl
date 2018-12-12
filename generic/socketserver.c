@@ -135,16 +135,16 @@ static char debug_msgbuf[512];
 
 // Log message
 static void logmsg(const char * msg) {
-        char      tstamp[BUFSIZ];
-        time_t    t;
-        struct tm tmbuf;
+	char      tstamp[BUFSIZ];
+	time_t    t;
+	struct tm tmbuf;
 
 #ifdef SOCKETSERVER_DEBUG
 	strcpy(debug_msgbuf, msg);
 #endif
 
 	time(&t);
-        strftime(tstamp, BUFSIZ, "%F %T", gmtime_r(&t, &tmbuf));
+	strftime(tstamp, BUFSIZ, "%F %T", gmtime_r(&t, &tmbuf));
 
 	fprintf(stderr, "[%s] %s\n", tstamp, msg);
 }
