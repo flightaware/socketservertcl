@@ -45,7 +45,7 @@ static int send_fd(int sock, int fd, const char *host_and_port) {
 	struct iovec iov;
 	char buf[CMSG_SPACE(sizeof(int))];
     char null_byte = 0;
-    
+
     if (host_and_port) {
         // Send the host and port as the data in the message
         iov.iov_base = (void *)host_and_port;
@@ -55,7 +55,7 @@ static int send_fd(int sock, int fd, const char *host_and_port) {
         iov.iov_base = &null_byte;
         iov.iov_len = 1;
     }
-    
+
 	msg.msg_iov = &iov;
 	msg.msg_iovlen = 1;
 	msg.msg_control = buf;
@@ -87,7 +87,7 @@ static int recv_fd(int sock, char *host_and_port, int host_and_port_max) {
     if (host_and_port) {
         *host_and_port = 0;
     }
-    
+
 	iov.iov_base = data;
 	iov.iov_len = sizeof(data);
 	msg.msg_iov = &iov;
@@ -99,7 +99,7 @@ static int recv_fd(int sock, char *host_and_port, int host_and_port_max) {
 
 	if (recvmsg(sock, &msg, MSG_DONTWAIT) == -1)
 		return -1;
-    
+
 	struct cmsghdr *header;
 	for (header = CMSG_FIRSTHDR(&msg); header != NULL; header = CMSG_NXTHDR(&msg, header)) {
 		if (header->cmsg_level == SOL_SOCKET && header->cmsg_type == SCM_RIGHTS) {
@@ -133,11 +133,34 @@ static int recv_fd(int sock, char *host_and_port, int host_and_port_max) {
 static char debug_msgbuf[512];
 #endif
 
-static void debug(const char * msg) {
+// Log message
+static void logmsg(const char * msg) {
+	char      tstamp[BUFSIZ];
+	time_t    t;
+	struct tm tmbuf;
+
 #ifdef SOCKETSERVER_DEBUG
 	strcpy(debug_msgbuf, msg);
-	fprintf(stderr, "%s\n", msg);
 #endif
+
+	time(&t);
+	strftime(tstamp, BUFSIZ, "%F %T", gmtime_r(&t, &tmbuf));
+
+	fprintf(stderr, "[%s] %s\n", tstamp, msg);
+}
+
+// Log debug message
+static void debug(const char * msg) {
+#ifdef SOCKETSERVER_DEBUG
+	logmsg(msg);
+#endif
+}
+
+// Log fatal error message
+// Send a TERM signal to self, to exit the master process
+static void fatal(const char * msg) {
+	logmsg(msg);
+	kill(getpid(), 15);
 }
 
 /*
@@ -167,12 +190,13 @@ static void * socketserver_thread(void *args)
 	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
 	if (socket_desc == -1)
 	{
-		debug("Could not create socket");
+		fatal("Could not create socket");
+		return (void *)1;
 	}
 	debug("Socket created");
 
 	if (setsockopt(socket_desc, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(int)) < 0) {
-		debug("SO_REUSEADDR failed");    
+		logmsg("SO_REUSEADDR failed");
 	}
 
 	server.sin_family = AF_INET;
@@ -180,9 +204,7 @@ static void * socketserver_thread(void *args)
 	server.sin_port = htons( targs->port );
 	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
-		debug("bind failed");
-		// Send a TERM signal to self, to exit the master process
-		kill(getpid(), 15);
+		fatal("bind failed");
 		return (void *)1;
 	}
 	debug("bind done");
