@@ -18,7 +18,7 @@ dnl	to configure the system for the local environment.
 # so you can encode the package version directly into the source files.
 #-----------------------------------------------------------------------
 
-AC_INIT([socketserver], [1.1.1])
+AC_INIT([socketserver], [1.1.2])
 
 #--------------------------------------------------------------------
 #Extract the major.minor part from the 3-part version number

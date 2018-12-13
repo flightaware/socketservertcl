@@ -27,6 +27,8 @@ A ::socketserver::socket server <port number> opens the listening and accepting 
 Clients will be able to send data immediately on accept. Clients will not receive data until child processes
 call ::sockerserver::socket client ?-port <port number>? <handleProc>, Tcl dispatches the events and invokes the handlerProc and the handleProc reads the socket.
 
+WARNING! This opens the initial listening socket in the child thread. When ::socketserver::socket fails to open the socket for any reason, it signals the main process with a **kill(15)**, which will terminate the application if there is no handler for it.
+
 A ::socketserver::socket client <handlerProc> must be called to receive a connected TCP socket from the parent process.
 This allows the forked process to process single connects serially.
 All of the child processes share a single queue implemented as the socketpair() between the parent and child processes.
