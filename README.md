@@ -23,9 +23,9 @@ file descriptor passing.
 
 ```
 
-A ::socketserver::socket server <port number> opens the listening and accepting TCP socket.  You will do this once before forking children.  The socket accept() call is performed in a background daemon thread. 
+A `::socketserver::socket server <port number>` opens the listening and accepting TCP socket.  You will do this once before forking children.  The socket accept() call is performed in a background daemon thread. 
 Clients will be able to send data immediately on accept. Clients will not receive data until child processes
-call ::sockerserver::socket client ?-port <port number>? <handleProc>, Tcl dispatches the events and invokes the handlerProc and the handleProc reads the socket.
+call `::sockerserver::socket client ?-port <port number>? <handleProc>`, Tcl dispatches the events and invokes the handlerProc and the handleProc reads the socket.
 
 WARNING! This opens the initial listening socket in the child thread. When ::socketserver::socket fails to open the socket for any reason, it signals the main process with a **kill(15)**, which will terminate the application if there is no handler for it.
 
@@ -83,6 +83,8 @@ make
 make install
 ```
 
-Thanks to libancillary which made this code possible by clearly implementing file descriptor passing.
-Thanks fo flingfd which provided more cleanups on how to call SCM_RIGHTS.
-https://github.com/sharvil/flingfd
+Acknowledgements
+----
+* Thanks to [libancillary](https://github.com/sanjosh/libancillary) which made this code possible by clearly implementing file descriptor passing.
+* Thanks to [flingfd](https://github.com/sharvil/flingfd) which provided more cleanups on how to call SCM_RIGHTS.
+
