@@ -126,7 +126,8 @@ vwait done
 <section>
 <pre>
 proc handle_accept {fd} {
-	fconfigure $fd -encoding utf-8 -buffering line -blocking 1 -translation lf
+	fconfigure $fd -encoding utf-8 -buffering line -blocking 1 \
+			-translation lf
 	while {1} {
 	    set line [gets $fd]
 	    if {[string first "quit" $line] != -1} {
