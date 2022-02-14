@@ -85,6 +85,7 @@ make install
 
 Acknowledgements
 ----
-* Thanks to [libancillary](https://github.com/sanjosh/libancillary) which made this code possible by clearly implementing file descriptor passing.
+* Thanks to [libancillary](https://www.normalesup.org/~george/comp/libancillary/) which made this code possible by clearly implementing file descriptor passing.
 * Thanks to [flingfd](https://github.com/sharvil/flingfd) which provided more cleanups on how to call SCM_RIGHTS.
 
+![socketservertcl animation](/doc/anim.gif)
