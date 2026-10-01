@@ -36,7 +36,7 @@
 TCL_DECLARE_MUTEX(threadMutex);
 
 #define ERRBUFSIZE 512
-static char errbuf[ERRBUFSIZE]
+static char errbuf[ERRBUFSIZE];
 
 /*
  * Send and fd over sock with SCM_RIGHTS.
