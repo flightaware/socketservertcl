@@ -35,6 +35,9 @@
 
 TCL_DECLARE_MUTEX(threadMutex);
 
+#define ERRBUFSIZE 512
+static char errbuf[ERRBUFSIZE]
+
 /*
  * Send and fd over sock with SCM_RIGHTS.
  *
@@ -190,7 +193,7 @@ static void * socketserver_thread(void *args)
 	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
 	if (socket_desc == -1)
 	{
-		fatal("Could not create socket");
+		fatal(strerror_r(errno, errbuf, ERRBUFSIZE));
 		return (void *)1;
 	}
 	debug("Socket created");
@@ -204,7 +207,7 @@ static void * socketserver_thread(void *args)
 	server.sin_port = htons( targs->port );
 	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
-		fatal("bind failed");
+		fatal(strerror_r(errno, errbuf, ERRBUFSIZE));
 		return (void *)1;
 	}
 	debug("bind done");
