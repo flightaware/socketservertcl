@@ -38,6 +38,19 @@ TCL_DECLARE_MUTEX(threadMutex);
 #define ERRBUFSIZE 512
 static char errbuf[ERRBUFSIZE];
 
+// There are two incompatible versions of strerror_r
+#ifdef __USE_XOPEN2K
+#ifndef _GNU_SOURCE
+#define STRERROR_R_POSIX
+#endif
+#endif
+
+#ifdef STRERROR_R_POSIX
+#define strerror_r_default(e,b,l,d) (strerror_r(e,b,l) ? (d) : b)
+#else
+#define strerror_r_default(e,b,l) strerror_r(e,b,l)
+#endif
+
 /*
  * Send and fd over sock with SCM_RIGHTS.
  *
@@ -193,7 +206,7 @@ static void * socketserver_thread(void *args)
 	socket_desc = socket(AF_INET , SOCK_STREAM , 0);
 	if (socket_desc == -1)
 	{
-		fatal(strerror_r(errno, errbuf, ERRBUFSIZE));
+		fatal(strerror_r_default(errno, errbuf, ERRBUFSIZE, "could not create socket"));
 		return (void *)1;
 	}
 	debug("Socket created");
@@ -207,7 +220,7 @@ static void * socketserver_thread(void *args)
 	server.sin_port = htons( targs->port );
 	if( bind(socket_desc,(struct sockaddr *)&server , sizeof(server)) < 0)
 	{
-		fatal(strerror_r(errno, errbuf, ERRBUFSIZE));
+		fatal(strerror_r_default(errno, errbuf, ERRBUFSIZE, "bind failed"));
 		return (void *)1;
 	}
 	debug("bind done");
