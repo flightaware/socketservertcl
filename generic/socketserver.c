@@ -387,7 +387,7 @@ static socketserver_port * socketserver_getPort(socketserver_objectClientData *c
 	return p;
 }
 
-int socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objv[])
+int socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objv[])
 {
 	socketserver_objectClientData *cdPtr = (socketserver_objectClientData *)clientData;
 	int optIndex;
@@ -399,7 +399,7 @@ int socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_
 		OPT_CLIENT,
 		OPT_SERVER
 	};
-	static CONST char *options[] = { "client", "server" };
+	static const char *options[] = { "client", "server" };
 
 	// basic command line processing
 
