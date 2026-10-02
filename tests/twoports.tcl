@@ -1,4 +1,6 @@
 package require Tclx
+if {![info exists auto_path]} { set auto_path [list] }
+set auto_path [list [pwd] {*}$auto_path]
 package require socketserver
 
 # create two ports
