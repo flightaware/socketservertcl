@@ -48,7 +48,7 @@ static char errbuf[ERRBUFSIZE];
 #ifdef STRERROR_R_POSIX
 #define strerror_r_default(e,b,l,d) (strerror_r(e,b,l) ? (d) : b)
 #else
-#define strerror_r_default(e,b,l) strerror_r(e,b,l)
+#define strerror_r_default(e,b,l,d) strerror_r(e,b,l)
 #endif
 
 /*
