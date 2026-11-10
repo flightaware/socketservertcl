@@ -13,7 +13,29 @@
 set tcltestVersion [package require tcltest]
 namespace import -force tcltest::*
 
+# Hook to determine if any of the tests failed. Then we can exit with
+# proper exit code: 0=all passed, 1=one or more failed
+proc tcltest::cleanupTestsHook {} {
+        variable numTests
+        set ::exitCode [expr {$numTests(Failed) > 0}]
+}
+
+proc goodtime {} {
+	clock format [clock seconds] -format "%Y-%m-%d %T" -gmt 0
+}
+
+#puts stdout "\nTests started at [goodtime]"
+
 tcltest::testsDirectory [file dir [info script]]
 tcltest::runAllTests
 
-return
+## cleanup
+#puts stdout "\nTests ended at [goodtime]"
+#::tcltest::cleanupTests 1
+
+if {$exitCode} {
+        puts "====== FAIL ====="
+        exit $exitCode
+} else {
+        puts "====== SUCCESS ====="
+}

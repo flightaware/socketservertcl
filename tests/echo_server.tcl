@@ -1,7 +1,7 @@
 package require Tclx
-#package require socketserver
-
-load "./libsocketserver1.0.1.so"
+if {![info exists auto_path]} { set auto_path [list] }
+set auto_path [list [pwd] {*}$auto_path]
+package require socketserver
 
 # Creat the socket
 # Start listening and accepting connections in a background thread

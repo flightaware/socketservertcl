@@ -16,7 +16,7 @@
 #include <string.h>
 
 extern int
-socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *CONST objvp[]);
+socketserverObjCmd(ClientData clientData, Tcl_Interp *interp, int objc, Tcl_Obj *const objvp[]);
 
 #define SOCKETSERVER_OBJECT_MAGIC 71820352
 
